@@ -1,3 +1,18 @@
+expt = buildGLM.initExperiment('ms', 1, [], rawData.param);
+expt = buildGLM.registerTiming(expt,'left_click','left click');
+expt = buildGLM.registerTiming(expt,'right_click','right click');
+expt = buildGLM.registerTiming(expt,'stim_on','Stimulus Onset');
+expt = buildGLM.registerSpikeTrain(expt,'spk1','A192, date, cellno');
+expt = buildGLM.registerValue(expt,'choice','Choice Direction');
+
+
+
+
+
+
+
+
+
 %% Load the raw data
 rawData = load('exampleData.mat'); % run tutorial_exampleData to generate this
 nTrials = rawData.nTrials; % number of trials
