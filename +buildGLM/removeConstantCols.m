@@ -17,6 +17,8 @@ if isfield(dm, 'zscore')
 end
 
 v = var(dm.X);
-
+if any(v==0)
+    warning('Found zero-variance columns in design matrix. This means some covariates were not used at all and were removed.');
+end
 dm.constCols = v == 0;
 dm.X = dm.X(:, ~dm.constCols);
