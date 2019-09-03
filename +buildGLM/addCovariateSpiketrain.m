@@ -3,7 +3,7 @@ function dspec = addCovariateSpiketrain(dspec, covLabel, stimLabel, desc, basisS
 if nargin < 4 || isempty(desc); desc = covLabel; end
 
 if nargin < 5
-    basisStruct = basisFactory.makeNonlinearRaisedCos(10, dspec.expt.binSize, [0 100], 2);
+    basisStruct = basisFactory.makeNonlinearRaisedCos(6, dspec.expt.binSize, [0 50], 1);
 end
 
 assert(ischar(desc), 'Description must be a string');
