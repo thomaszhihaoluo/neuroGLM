@@ -18,7 +18,7 @@ elseif offset > 0; % push to future
     stim = [zeros(offset, dx); stim];
 end
 
-if issparse(stim) || nnz(stim) < 20;
+if issparse(stim) || nnz(stim)/numel(stim) < 0.0005
     X = basisFactory.temporalBases_sparse(stim, bases.B);
 else
     X = basisFactory.temporalBases_dense(stim, bases.B);
