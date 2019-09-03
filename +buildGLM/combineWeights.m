@@ -1,4 +1,4 @@
-function [wout] = combineWeights(dm, w)
+function [wout,wvarout] = combineWeights(dm, w , wcov)
 % Combine the weights per column in the design matrix per covariate
 %
 % Input
@@ -9,22 +9,42 @@ function [wout] = combineWeights(dm, w)
 %   wout.(label).data = combined weights
 %   wout.(label).tr = time axis
 
+nsamples=1e4;
+w=w(:)';
 dspec = dm.dspec;
 binSize = dspec.expt.binSize;
+if nargin>2
+    covSupplied=true;
+    assert(issquare(wcov));
+else
+    covSupplied=false;
+end
 
 if isfield(dm, 'biasCol') % undo z-score operation
     wout.bias = w(dm.biasCol);
     w(dm.biasCol) = [];
+    if covSupplied
+        wcov(dm.biasCol,:)=[];
+        wcov(:,dm.biasCol)=[];
+    end
 end
 
 if isfield(dm, 'zscore') % undo z-score operation
     w = (w .* dm.zscore.sigma(:)) + dm.zscore.mu(:);
+    if covSupplied
+        wcov = (wcov .* dm.zscore.sigma(:)) + dm.zscore.mu(:);
+    end
 end
 
 if isfield(dm, 'constCols') % put back the constant columns
     w2 = zeros(dm.dspec.edim, 1);
     w2(~dm.constCols) = w; % first term is bias
     w = w2;
+    if covSupplied
+        wcov2 = zeros(dm.dspec.edim);
+        wcov2(~dm.constCols,~dm.constCols)=wcov;
+        wcov=wcov2;
+    end
 end
 
 if numel(w) ~= dm.dspec.edim
@@ -32,29 +52,37 @@ if numel(w) ~= dm.dspec.edim
 	dspec.edim, numel(w));
 end
 
+if numel(wcov) ~= dm.dspec.edim^2
+    error('Expecting w to have %d^2 elements but it''s [%d]', ...
+	dspec.edim, sqrt(numel(wcov)));
+end
+
 startIdx = [1 (cumsum([dspec.covar(:).edim]) + 1)];
 wout = struct();
+wvarout=struct();
 
+if covSupplied
+    w=mvnrnd(w,wcov,nsamples);
+end
 for kCov = 1:numel(dspec.covar)
     covar = dspec.covar(kCov);
     basis = covar.basis;
-
     if isempty(basis)
-	w_sub = w(startIdx(kCov) + (1:covar.edim) - 1);
-	wout.(covar.label).tr = ((1:size(w_sub, 1))-1 + covar.offset) * binSize;
-	wout.(covar.label).data = w_sub;
+	w_sub = w(:,startIdx(kCov) + (1:covar.edim) - 1);
+	wout.(covar.label).tr = ((1:size(w_sub, 2))-1 + covar.offset) * binSize;
+	wout.(covar.label).data = mean(w_sub*basis.B',1);
 	continue;
     end
-
     assert(isstruct(basis), 'Basis structure is not a structure?');
-
     sdim = covar.edim / basis.edim;
     wout.(covar.label).data = zeros(size(basis.B, 1), sdim);
     for sIdx = 1:sdim
-	w_sub = w(startIdx(kCov) + (1:basis.edim)-1 + basis.edim * (sIdx - 1));
-	w2_sub = sum(bsxfun(@times, basis.B, w_sub(:)'), 2);
-	wout.(covar.label).data(:, sIdx) = w2_sub;
+	w_sub = w(:,startIdx(kCov) + (1:basis.edim)-1 + basis.edim * (sIdx - 1));
+	wout.(covar.label).data = mean(w_sub*basis.B',1);    
+    wout.(covar.label).tr = (basis.tr(:, 1) + covar.offset) * binSize * ones(1, sdim);    
+    if covSupplied
+        wvarout.(covar.label).data = var(w_sub*basis.B',1);
+        wvarout.(covar.label).tr=(basis.tr(:, 1) + covar.offset) * binSize * ones(1, sdim);
     end
-    wout.(covar.label).tr = ...
-	(basis.tr(:, 1) + covar.offset) * binSize * ones(1, sdim);
+    end
 end
