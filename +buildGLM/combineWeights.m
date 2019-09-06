@@ -1,5 +1,10 @@
 function [wout,wvarout] = combineWeights(dm, w , wcov)
-% Combine the weights per column in the design matrix per covariate
+% Combine the weights per column in the design matrix per covariate 
+
+% wvarout is a structure organized the same as wout but with the estimated
+% variances of the recombined fitted weights. This requires supplying a
+% weight covariance matrix (wcov).
+% AGB 2019
 %
 % Input
 %   dm: design matrix structure
@@ -15,9 +20,13 @@ dspec = dm.dspec;
 binSize = dspec.expt.binSize;
 if nargin>2
     covSupplied=true;
-    assert(issquare(wcov));
+    assert(size(wcov,1)==numel(w) && size(wcov,2)==numel(w)); %
 else
     covSupplied=false;
+end
+
+if nargout>1 && ~covSupplied
+    error('You must supply a weight covariance matrix as the third argument.');
 end
 
 if isfield(dm, 'biasCol') % undo z-score operation
@@ -59,7 +68,6 @@ end
 
 startIdx = [1 (cumsum([dspec.covar(:).edim]) + 1)];
 wout = struct();
-wvarout=struct();
 
 if covSupplied
     w=mvnrnd(w,wcov,nsamples);
