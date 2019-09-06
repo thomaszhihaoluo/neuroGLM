@@ -1,4 +1,5 @@
 function stats = fit_glm_to_Msorted(Msorted,varargin)
+    %% parse and validate inputs
     p=inputParser;
     p.addParameter('cellno',[]);
     p.addParameter('kfold',[]);
@@ -10,6 +11,7 @@ function stats = fit_glm_to_Msorted(Msorted,varargin)
     p.parse(varargin{:});
     params=p.Results;
     stats=[];    
+    %% make rawData and expt structures
     rawData = make_glm_trials_from_Msorted(Msorted);
     expt=build_expt_for_pbups(rawData);
     if isempty(params.cellno)
@@ -20,6 +22,7 @@ function stats = fit_glm_to_Msorted(Msorted,varargin)
         end
     end
     fprintf('\n');
+    %% testing save
     if params.save
         fprintf('Testing save now before spending a long time fitting... ');
         mat_file_name = strrep(Msorted.mat_file_name,'Msorted','glmfits_save_test');
@@ -29,10 +32,11 @@ function stats = fit_glm_to_Msorted(Msorted,varargin)
         fprintf(' Success!\n');
     end    
     cell_count=0;    
-    for c=length(params.cellno):-1:1
+    for c=length(params.cellno):-1:1     % loop over cells
         cell_count=cell_count+1;
         stats(c).cellno = params.cellno(c);          
         fprintf('Cell id %g (%g of %g to fit):\n',stats(c).cellno,cell_count,length(params.cellno));
+        %% determine if cell is responsive enough to fit
         stats(c).responsiveFrac = sum(arrayfun(@(x)numel(x.(['sptrain',num2str(stats(c).cellno)])),expt.trial)>0)./rawData.nTrials;        
         if params.minResponsiveFrac>0
             if stats(c).responsiveFrac < params.minResponsiveFrac
@@ -40,10 +44,12 @@ function stats = fit_glm_to_Msorted(Msorted,varargin)
                 continue
             end
         end
+        %% build dspec and design matrix
         stats(c).dspec = build_dspec_for_pbups(expt,stats(c).cellno);    
         dm = buildGLM.compileSparseDesignMatrix(stats(c).dspec, 1:rawData.nTrials);  
         dm = buildGLM.removeConstantCols(dm);
         Y = full(buildGLM.getBinnedSpikeTrain(expt, ['sptrain',num2str(stats(c).cellno)], dm.trialIndices));  
+        %% determine if spike/parameter ratio is acceptable
         stats(c).totalSpks = sum(Y);
         stats(c).spkParamRatio = stats(c).totalSpks ./ (size(dm.X,2)+1);   
         if params.minSpkParamRatio>0
@@ -52,6 +58,7 @@ function stats = fit_glm_to_Msorted(Msorted,varargin)
                 continue
             end
         end        
+        %% Fitting UN cross-validated model
         tic;fprintf('   Fitting UN cross-validated model ... ');                    
         [~, dev, stat_temp] = glmfit(dm.X, Y, 'poisson');
         fields_to_copy = fields(stat_temp);
@@ -68,6 +75,7 @@ function stats = fit_glm_to_Msorted(Msorted,varargin)
         else
             stats(c).badly_scaled=false;
         end
+        %% Fit cross-validated model (if requested and if uncross-validated fit was not badly scaled)
         if ~isempty(params.kfold)
             if stats(c).badly_scaled
                 fprintf('Skipping cross-validation since fit to all data was badly scaled.\n');
