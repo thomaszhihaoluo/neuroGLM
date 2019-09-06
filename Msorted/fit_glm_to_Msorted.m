@@ -15,9 +15,9 @@ function stats = fit_glm_to_Msorted(Msorted,varargin)
     p.parse(varargin{:});
     params=p.Results;
     stats=[];    
-    %% make rawData and expt structures
-    rawData = make_glm_trials_from_Msorted(Msorted);
-    expt=build_expt_for_pbups(rawData);
+    %% make rawData and expt structures (i.e. add state times and spike times in a trial structure that neuroGLM wants)
+    rawData = make_glm_trials_from_Msorted(Msorted); 
+    expt=build_expt_for_pbups(rawData); 
     if isempty(params.cellno)
         params.cellno=1:length(Msorted.tt);
         if isempty(params.cellno)
@@ -49,7 +49,9 @@ function stats = fit_glm_to_Msorted(Msorted,varargin)
             end
         end
         %% build dspec and design matrix
-        stats(c).dspec = build_dspec_for_pbups(expt,stats(c).cellno);    
+        % build dspec, which states what the regressors are in your model
+        % and how they are parameterized
+        stats(c).dspec = build_dspec_for_pbups(expt,stats(c).cellno);    % NOTE: this should be taken out of the loop, since it's the same for all cells -AGB, 9/6/2019
         dm = buildGLM.compileSparseDesignMatrix(stats(c).dspec, 1:rawData.nTrials);  
         dm = buildGLM.removeConstantCols(dm);
         Y = full(buildGLM.getBinnedSpikeTrain(expt, ['sptrain',num2str(stats(c).cellno)], dm.trialIndices));  
@@ -68,11 +70,15 @@ function stats = fit_glm_to_Msorted(Msorted,varargin)
         fields_to_copy = fields(stat_temp);
         for f=1:length(fields_to_copy)
             stats(c).(fields_to_copy{f}) = stat_temp.(fields_to_copy{f});
-        end          
+        end       
+        % compute model predicted firing rates
         stats(c).Yhat=glmval(stats(c).beta,dm.X,'log',stats(c).beta);
         fprintf('took %s.\n',timestr(toc));
         stats(c).dev=dev;
+        % reconstruct fitted kernels by weighted combination of basis functions
         [stats(c).ws,stats(c).wvars] = buildGLM.combineWeights(buildGLM.addBiasColumn(dm), stats(c).beta , stats(c).covb);
+        % determine if least-squared weights are badly scaled. If so, not much point
+        % doing cross-validation.
         sqrtw=sqrt(stats(c).wts);
         if any(sqrtw~=0 & sqrtw<(max(sqrtw)*eps('double')^(2/3)))
             stats(c).badly_scaled=true;
