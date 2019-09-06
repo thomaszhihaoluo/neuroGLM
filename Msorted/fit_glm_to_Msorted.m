@@ -1,4 +1,8 @@
 function stats = fit_glm_to_Msorted(Msorted,varargin)
+    % fits a GLM for spiking data recorded during PBups and contained within
+    % an Msorted data structure.
+    % This function is essentially a wrapper for the neuroGLM package forked from the
+    % Pillow lab.
     %% parse and validate inputs
     p=inputParser;
     p.addParameter('cellno',[]);
