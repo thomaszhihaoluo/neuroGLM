@@ -17,23 +17,23 @@ function plotFittedCovariates(stats,varargin)
             label = groups{kCov}{j};
             subplot(n_subplot_columns,n_subplot_columns, kCov);hold on;
             if length(groups{kCov})==1
-                shadedErrorBar(stats.ws.(label).tr/1000, stats.ws.(label).data, sqrt(stats.wvars.(label).data));
+                shadeplot2(stats.ws.(label).tr/1000, stats.ws.(label).data, sqrt(stats.wvars.(label).data));
             else
-                h(count) = shadedErrorBar(stats.ws.(label).tr/1000, stats.ws.(label).data, sqrt(stats.wvars.(label).data),color.(matches{j}));  
-                if count>1
-                    h(count).patch.FaceAlpha=0.5;
-                    if strcmp(label,'left_clicks') || strcmp(label,'right_clicks')
-                        legend([h.mainLine],{'left clicks','right clicks'})                
-                    else
-                        legend([h.mainLine],{'left choice','right choice'})                                    
-                    end
-                end
+                shadeplot2(stats.ws.(label).tr/1000, stats.ws.(label).data, sqrt(stats.wvars.(label).data),'Color', color.(matches{j}));  
+%                 if count>1
+%                     h(count).patch.FaceAlpha=0.5;
+%                     if strcmp(label,'left_clicks') || strcmp(label,'right_clicks')
+%                         legend([h.mainLine],{'left clicks','right clicks'})                
+%                     else
+%                         legend([h.mainLine],{'left choice','right choice'})                                    
+%                     end
+%                 end
             end
             mmx = minmax([mmx(:);stats.ws.(label).data(:)]);            
             title_str = strrep(groups{kCov}{j},'_',' ');
             title_str = strrep(title_str,matches{j},'');
             title(title_str);
-            set(gca,'xlim',minmax(stats.ws.(label).tr/1000));
+            set(gca,'xlim',minmax(stats.ws.(label).tr(:)'/1000));
             xlabel('time (s)');
         end
     end
